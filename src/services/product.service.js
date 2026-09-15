@@ -1,4 +1,5 @@
 import prisma from "../config/prisma.js";
+import ApiError from "../utils/ApiError.js";
 
 const createSlug = (name) => {
   return name
@@ -62,3 +63,70 @@ export const getProductBySlugService = async (slug) => {
 
   return product;
 };
+export const  upataProductService = async (
+  productId,
+  data
+)=>{
+  const id = Number(productId);
+if(Number.isNaN(id)){
+  throw new ApiError(400, "Invalid product ID");
+}
+const existingProduct = await prisma.product.findUnique({
+  where: {
+    id,
+  },
+});
+if( !existingProduct){
+  throw new ApiError(404, " Product  not found");
+}
+const updataData ={
+   ...data,
+};
+
+// regenerate slug after product name change
+
+if(data.name && data.name !== existingProduct.name){
+  let slug = createSlug(data.name);
+
+  const existingSlug = await prisma.product.findUnique({
+    where: {
+      slug,
+    },
+  });
+  if(existingSlug && existingSlug.id !== id){
+    slug = `${slug}-${DataTransfer.now()}`;
+  }
+  updataData.slug =slug;
+}
+
+return prisma.product.update({
+  where: {
+    id,
+  },
+  data: updataData,
+});
+
+};
+
+export const deleteProductService = async (productId) =>{
+  const id = Number(productId);
+
+  if(Number.isNaN(id)){
+    throw new  ApiError(400, "Invalid product ID");
+  }
+  const product = await prisma.product.findUnique({
+    where:{
+      id,
+
+    },
+  });
+  if(!product){
+    throw new ApiError( 404, "Podcut not found");
+  }
+  await prisma.product.delete({
+    where: {
+      id,
+    },
+  });
+  return product;
+}
