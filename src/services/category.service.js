@@ -1,7 +1,7 @@
 import prisma from "../config/prisma.js";
 import ApiError from "../utils/ApiError.js";
 
-const createSlug = (name) =>{
+const createSlug = (name) => {
   return name
     .toLowerCase()
     .trim()
@@ -85,5 +85,66 @@ export const getCategoryBySlugService = async (slug) => {
     throw new ApiError(404, "Category not found");
   }
 
+  return category;
+};
+export const updateCategoryService = async (categoryId, data) => {
+  const id = Number(categoryId);
+  if (Number.isNaN(id)) {
+    throw new ApiError(400, " Invalid category ID");
+  }
+
+  const existingCategory = await prisma.category.findUnique({
+    where: { id },
+
+  });
+
+  if (!existingCategory) {
+    throw new ApiError(404, "Category not found");
+
+  }
+  const updateData = {
+    ...data,
+  };
+  //if category name change , generate a new slug of it.
+
+  if (data.name && data.name !== existingCategory.name) {
+     const slug = createSlug(data.name);
+
+     const categoryWithSlug  = await prisma.category.findUnique({
+      where: {slug},
+     });
+
+     if(categoryWithSlug && categoryWithSlug.id !== id){
+      throw new ApiError(
+         409,
+         "A category with this name already exists"
+      );
+     }
+
+     updateData.slug = slug;
+  }
+
+  return prisma.category.update({
+    where: {id},
+    data: updateData,
+  });
+};
+export const deleteCategoryService = async (categoryId) => {
+  const id = Number(categoryId);
+
+  if(Number.isNaN(id)){
+    throw new ApiError(400, "Invalid category ID");
+  }
+
+  const category = await prisma.category.findUnique({
+    where:{id},
+  });
+  if(!category){
+    throw new ApiError(404, "Category not found");
+  }
+
+  await prisma.category.delete({
+    where:{id},
+  });
   return category;
 };

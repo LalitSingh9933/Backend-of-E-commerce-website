@@ -25,6 +25,10 @@ export const createProductSchema = z.object({
       .string()
       .url("Image must be a valid URL")
       .optional(),
+    categoryId: z
+      .number()
+      .int()
+      .positive("Category ID must be valid"),
   }),
 });
 export const updateProductSchema = z.object({
@@ -59,6 +63,11 @@ export const updateProductSchema = z.object({
 
       isActive: z
         .boolean()
+        .optional(),
+      categoryId: z
+        .number()
+        .int()
+        .positive("Category ID must be valid")
         .optional(),
     })
     .refine(

@@ -1,6 +1,6 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/ApiResponse.js";
-import { createCategoryService,getAllCategoriesService,getCategoryBySlugService} from "../services/category.service.js";
+import { createCategoryService,getAllCategoriesService,getCategoryBySlugService ,updateCategoryService,deleteCategoryService} from "../services/category.service.js";
 
 export const createCategory = asyncHandler (
      async(req,res)=>{
@@ -45,3 +45,26 @@ export const getCategoryBySlug = asyncHandler(
     );
   }
 );
+export const  updateCategory = asyncHandler (async(req,res)=>{
+  const category = await updateCategoryService(
+    req.params.id,
+    req.body
+  );
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      "Category updated successfully",
+      category
+    )
+  )
+});
+export const deleteCategory = asyncHandler (async( req, res) =>{
+  await deleteCategoryService (req.params.id);
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      "Category deleted successfully"
+    )
+  );
+});
