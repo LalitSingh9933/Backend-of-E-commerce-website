@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import {
   addToCart,
+  getCart
 } from "../controllers/cart.controller.js";
 
 import { authenticate } from "../middlewares/auth.middleware.js";
@@ -12,6 +13,7 @@ import {
 } from "../validators/cart.validator.js";
 
 const router = Router();
+router.get( "/", authenticate,getCart);
 
 router.post(
   "/items",
