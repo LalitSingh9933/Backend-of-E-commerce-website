@@ -14,3 +14,11 @@ export const addToCartSchema = z.object({
       .default(1),
   }),
 });
+export const updateCartItemSchema = z.object({
+  body: z.object({
+    quantity: z
+      .number()
+      .int()
+      .positive("Quantity must be at least 1"),
+  }),
+});

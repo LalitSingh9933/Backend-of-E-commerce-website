@@ -128,4 +128,97 @@ export const getCartService = async (userId) => {
         createdAt: cart.createdAt,
         updatedAt: cart.updatedAt
     }
-}
+};
+export const updateCartItemService = async (
+    userId,
+    cartItemId,
+    quantity
+) => {
+    const id = Number(cartItemId);
+
+    if (Number.isNaN(id)) {
+        throw new ApiError(400, "Invalid cart item ID");
+    }
+
+    const cartItem = await prisma.cartItem.findFirst({
+        where: {
+            id,
+            cart: {
+                userId,
+            },
+        },
+
+        include: {
+            product: true,
+        },
+
+    });
+    if (!cartItem) {
+        throw new ApiError(404, "Cart item not found");
+    }
+
+    if (!cartItem.product.isActive) {
+        throw new ApiError(400, "Product is no longer available");
+    }
+    if (quantity > cartItem.product.stock) {
+        throw new ApiError(
+            400, `Only ${cartItem.product.stock} item(s) available`
+        );
+    }
+    return prisma.cartItem.update({
+        where: {
+            id,
+        },
+        data: {
+            quantity,
+        },
+        include: {
+            product: true,
+        },
+    });
+};
+export const removeCartItemService = async (
+    userId,
+    cartItemId
+) => {
+    const id = Number(cartItemId);
+
+    if (Number.isNaN(id)) {
+        throw new ApiError(400, "Invalid cart item ID");
+    }
+    const cartItem = await prisma.cartItem.findFirst({
+        where: {
+            id,
+            cart: {
+                userId,
+            },
+        },
+    });
+
+    if (!cartItem) {
+        throw new ApiError(404, "Cart item not found");
+    }
+
+    await prisma.cartItem.delete({
+        where: {
+            id,
+        },
+    });
+};
+export const clearCartService = async (userId) => {
+  const cart = await prisma.cart.findUnique({
+    where: {
+      userId,
+    },
+  });
+
+  if (!cart) {
+    return;
+  }
+
+  await prisma.cartItem.deleteMany({
+    where: {
+      cartId: cart.id,
+    },
+  });
+};
