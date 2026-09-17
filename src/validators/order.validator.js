@@ -29,3 +29,15 @@ export const createOrderSchema = z.object({
             .optional(),
     }),
 });
+export const updateOrderStatusSchema = z.object({
+    body: z.object({
+        status: z.enum([
+            "PENDING",
+            "CONFIRMED",
+            "PROCESSING",
+            "SHIPPED",
+            "DELIVERED",
+            "CANCELLED",
+        ]),
+    }),
+});

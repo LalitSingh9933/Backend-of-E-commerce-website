@@ -76,14 +76,14 @@ export const createOrderService = async (userId, shippingData) => {
                     })),
                 },
             },
-                include: {
-                    items: {
-                        include: {
-                            product: true,
-                        },
+            include: {
+                items: {
+                    include: {
+                        product: true,
                     },
                 },
-            });
+            },
+        });
         // Decrease stock
         for (const item of cart.items) {
             const result = await tx.product.updateMany({
@@ -120,66 +120,126 @@ export const createOrderService = async (userId, shippingData) => {
     })
 };
 export const getMyOrdersService = async (userId) => {
-  return prisma.order.findMany({
-    where: {
-      userId,
-    },
-
-    include: {
-      items: {
-        include: {
-          product: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              image: true,
-            },
-          },
+    return prisma.order.findMany({
+        where: {
+            userId,
         },
-      },
-    },
 
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+        include: {
+            items: {
+                include: {
+                    product: {
+                        select: {
+                            id: true,
+                            name: true,
+                            slug: true,
+                            image: true,
+                        },
+                    },
+                },
+            },
+        },
+
+        orderBy: {
+            createdAt: "desc",
+        },
+    });
 };
 export const getOrderByIdService = async (
-  userId,
-  orderId
+    userId,
+    orderId
 ) => {
-  const id = Number(orderId);
+    const id = Number(orderId);
 
-  if (Number.isNaN(id)) {
-    throw new ApiError(400, "Invalid order ID");
-  }
+    if (Number.isNaN(id)) {
+        throw new ApiError(400, "Invalid order ID");
+    }
 
-  const order = await prisma.order.findFirst({
-    where: {
-      id,
-      userId,
-    },
-
-    include: {
-      items: {
-        include: {
-          product: {
-            select: {
-              id: true,
-              name: true,
-              slug: true,
-              image: true,
-            },
-          },
+    const order = await prisma.order.findFirst({
+        where: {
+            id,
+            userId,
         },
-      },
-    },
-  });
 
-  if (!order) {
-    throw new ApiError(404, "Order not found");
-  }
+        include: {
+            items: {
+                include: {
+                    product: {
+                        select: {
+                            id: true,
+                            name: true,
+                            slug: true,
+                            image: true,
+                        },
+                    },
+                },
+            },
+        },
+    });
 
-  return order;
+    if (!order) {
+        throw new ApiError(404, "Order not found");
+    }
+
+    return order;
+};
+export const getAllOrdersService = async () => {
+    return prisma.order.findMany({
+        include: {
+            user: {
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                },
+            },
+
+            items: {
+                include: {
+                    product: {
+                        select: {
+                            id: true,
+                            name: true,
+                            slug: true,
+                            image: true,
+                        },
+                    },
+                },
+            },
+        },
+
+        orderBy: {
+            createdAt: "desc",
+        },
+    });
+};
+export const updateOrderStatusService = async (
+    orderId,
+    status
+) => {
+    const id = Number(orderId);
+
+    if (Number.isNaN(id)) {
+        throw new ApiError(400, "Invalid order ID");
+    }
+
+    const order = await prisma.order.findUnique({
+        where: {
+            id,
+        },
+    });
+
+    if (!order) {
+        throw new ApiError(404, "Order not found");
+    }
+
+    return prisma.order.update({
+        where: {
+            id,
+        },
+
+        data: {
+            status,
+        },
+    });
 };
