@@ -52,28 +52,76 @@ export const createProductService = async ({
     }
   });
 };
-export const getAllProductsService = async () => {
-  const products = await prisma.product.findMany({
-    where: {
-      isActive: true,
-    },
-    include: {
-      category: true
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
+export const getAllProductsService = async (query) => {
 
-  return products;
+  const page = Math.max(Number(query.page)|| 1,1);
+  const limit = Math.min(
+    Math.max(Number(query.limit) || 12,1),
+    100
+  );
+
+  const skip = (page -1) * limit;
+
+  const search = query.search?.trim();
+
+  const where = {
+     isActive: true,
+
+     ...ApiError(search && {
+      OR: [
+        {
+          name:{
+            contains: search,
+          },
+        },
+        {
+          description:{
+            contains:search,
+          },
+        },
+      ],
+     }),
+  };
+
+  const [products ,totalProducts ] = await prisma.$transaction([
+    prisma.product.findMany({
+      where,
+      include:{
+        category: true,
+      },
+      orderBy:{
+        createdAt:"desc",
+      },
+      skip,
+      take: limit,
+    }),
+    prisma.product.count({
+      where,
+    }),
+  ]);
+
+  const totalPages = Math.ceil(totalProducts/limit);
+
+  return{
+    products,
+  
+    pagination:{
+     page,
+      limit,
+      totalProducts,
+      totalPages,
+      hasNextPage: page < totalPages,
+      hasPreviousPage: page > 1,
+    },
+  };
 };
 export const getProductBySlugService = async (slug) => {
   const product = await prisma.product.findUnique({
     where: {
       slug,
     },
-    include:{
-      category:true,
+    include: {
+      category: true,
     }
   });
 
@@ -161,4 +209,4 @@ export const deleteProductService = async (productId) => {
     },
   });
   return product;
-}
+};
