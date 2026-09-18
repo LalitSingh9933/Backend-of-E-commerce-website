@@ -108,7 +108,7 @@ export const getAllProductsService = async (query) => {
         },
       ],
     }),
-  
+
     ...(category && {
       category: {
         slug: category,
@@ -136,7 +136,7 @@ export const getAllProductsService = async (query) => {
       },
 
       orderBy,
-      
+
       skip,
       take: limit,
     }),
@@ -250,10 +250,16 @@ export const deleteProductService = async (productId) => {
   if (!product) {
     throw new ApiError(404, "Podcut not found");
   }
-  await prisma.product.delete({
+  if (!product.isActive) {
+    throw new ApiError(400, "Product is already inactive");
+  }
+  return prisma.product.update({
     where: {
       id,
     },
+
+    data: {
+      isActive: false,
+    },
   });
-  return product;
 };
