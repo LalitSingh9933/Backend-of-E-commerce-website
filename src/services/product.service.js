@@ -234,7 +234,6 @@ export const upataProductService = async (
   });
 
 };
-
 export const deleteProductService = async (productId) => {
   const id = Number(productId);
 
@@ -260,6 +259,90 @@ export const deleteProductService = async (productId) => {
 
     data: {
       isActive: false,
+    },
+  });
+};
+export const getAllAdminProductsService = async (query) => {
+  const page = Math.max(Number(query.page) || 1, 1);
+  const limit = Math.min(Math.max(Number(query.limit) || 20, 1), 100);
+  const skip = (page - 1) * limit;
+
+  const search = query.search?.trim();
+
+  const where = {
+    ...(search && {
+      OR: [
+        {
+          name: {
+            contains: search,
+          },
+        },
+        {
+          description: {
+            contains: search,
+          },
+        },
+      ],
+    }),
+  };
+
+  const [products, totalProducts] = await prisma.$transaction([
+    prisma.product.findMany({
+      where,
+      include: {
+        category: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      skip,
+      take: limit,
+    }),
+
+    prisma.product.count({
+      where,
+    }),
+  ]);
+
+  return {
+    products,
+
+    pagination: {
+      page,
+      limit,
+      totalProducts,
+      totalPages: Math.ceil(totalProducts / limit),
+    },
+  };
+};
+export const reactivateProductService = async (productId) => {
+  const id = Number(productId);
+
+  if (Number.isNaN(id)) {
+    throw new ApiError(400, "Invalid product ID");
+  }
+
+  const product = await prisma.product.findUnique({
+    where: {
+      id,
+    },
+  });
+
+  if (!product) {
+    throw new ApiError(404, "Product not found");
+  }
+
+  if (product.isActive) {
+    throw new ApiError(400, "Product is already active");
+  }
+
+  return prisma.product.update({
+    where: {
+      id,
+    },
+
+    data: {
+      isActive: true,
     },
   });
 };

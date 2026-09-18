@@ -1,23 +1,40 @@
 import { Router } from "express";
-import { createProcut, getAllProducts,getproductBySlug ,updateProduct,deleteProduct} from "../controllers/product.controller.js";
+import {
+  createProcut, getAllProducts, getproductBySlug, updateProduct, deleteProduct,
+  getAllAdminProducts,
+  reactivateProduct,
+} from "../controllers/product.controller.js";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import { authorize } from "../middlewares/authorize.middleware.js";
 import validate from "../middlewares/validate.middleware.js";
-import { createProductSchema,updateProductSchema } from '../validators/product.validator.js';
+import { createProductSchema, updateProductSchema } from '../validators/product.validator.js';
 
 const router = Router();
 
-router.get("/",getAllProducts);
+router.get("/", getAllProducts);
 
-router.get("/:slug",getproductBySlug);
+router.get("/:slug", getproductBySlug);
 
-router.post("/",
-    authenticate,
-    authorize("ADMIN"),
-    validate(createProductSchema),
-    createProcut
+// ADMIN
+router.get(
+  "/admin/all",
+  authenticate,
+  authorize("ADMIN"),
+  getAllAdminProducts
 );
- router.patch(
+router.patch(
+  "/admin/:id/reactivate",
+  authenticate,
+  authorize("ADMIN"),
+  reactivateProduct
+);
+router.post("/",
+  authenticate,
+  authorize("ADMIN"),
+  validate(createProductSchema),
+  createProcut
+);
+router.patch(
   "/:id",
   authenticate,
   authorize("ADMIN"),
