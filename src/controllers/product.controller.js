@@ -16,13 +16,13 @@ export const createProcut = asyncHandler(async (req,res) =>{
 });
 
 export const  getAllProducts = asyncHandler(async(req,res) =>{
-    const products = await getAllProductsService();
+    const result = await getAllProductsService(req.query);
 
     return res.status(200).json(
         new ApiResponse(
             200,
             "Poducts Fetched successfully",
-            products
+            result
         )
     );
 });
