@@ -352,7 +352,7 @@ export const cancelOrderService = async (userId, orderId) => {
 };
 export const updatePaymentStatusService = async (
     orderId,
-    PaymentStatus
+    paymentStatus
 ) => {
 
     const id = Number(orderId);
