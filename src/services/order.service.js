@@ -243,3 +243,66 @@ export const updateOrderStatusService = async (
         },
     });
 };
+export const  cancelOrderService = async ( userId , orderId) =>{
+    const  id = Number(orderId);
+
+    if(Number.isNaN(id)){
+         throw new ApiError(400, "Invalid order ID");
+    }
+
+    return prisma.$transaction(async(tx) => {
+        const order = await tx.order.findFirst({
+            where:{
+                id,
+                userId,
+            },
+            include:{
+                items:true,
+            },
+        });
+        if(!order){
+            throw new ApiError(404, "Order not  found");
+        }
+
+        if(order.status === "CANCELLED"){
+            throw new ApiError(400, "Order is already cancelled");
+        }
+
+        if(
+            order.status ==="SHIPPED" || order.status ==="DELIVERED"
+        ){
+            throw new ApiError(
+                400,
+                "This order can no longer be cancelled"
+            );
+        }
+        // restore stock
+
+        for(const item of order.items){
+            await tx.product.update({
+                where:{
+                    id: item.productId,
+                },
+                data:{
+                    stock:{
+                        increment: item.quantity,
+                    },
+                },
+            });
+        }
+        // change  order status
+        const cancelledOrder = await tx.order.update({
+            where:{
+                id,
+            },
+            data:{
+                status: "CANCELLED",
+
+            },
+            include:{
+                items:true,
+            },
+        });
+        return cancelledOrder;
+    })
+}

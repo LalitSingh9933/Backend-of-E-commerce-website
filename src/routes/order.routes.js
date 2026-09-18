@@ -6,6 +6,7 @@ import {
     getOrderById,
     getAllOrders,
     updateOrderStatus,
+    cancelOrder
 
 } from "../controllers/order.controller.js";
 import {authorize} from "../middlewares/authorize.middleware.js";
@@ -37,6 +38,11 @@ router.post(
     authenticate,
     validate(createOrderSchema),
     createOrder
+);
+router.patch(
+  "/:id/cancel",
+  authenticate,
+  cancelOrder
 );
 //admin
 router.get(
