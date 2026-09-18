@@ -62,6 +62,8 @@ export const createOrderService = async (userId, shippingData) => {
                 city: shippingData.city,
                 postalCode: shippingData.postalCode,
 
+                 paymentMethod: shippingData.paymentMethod,
+
                 subtotal,
                 shippingFee,
                 total,

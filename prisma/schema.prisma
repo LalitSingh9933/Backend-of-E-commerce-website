@@ -33,6 +33,10 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum PaymentMethod {
+  COD
+  ONLINE
+}
 model User {
   id        Int      @id @default(autoincrement())
   name      String
@@ -112,6 +116,8 @@ model Order {
   user          User          @relation(fields: [userId], references: [id])
 
   status        OrderStatus   @default(PENDING)
+
+  paymentMethod PaymentMethod @default(COD)
   paymentStatus PaymentStatus @default(PENDING)
 
   subtotal      Decimal       @db.Decimal(10, 2)

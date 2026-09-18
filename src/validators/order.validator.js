@@ -27,6 +27,10 @@ export const createOrderSchema = z.object({
             .string()
             .trim()
             .optional(),
+            
+        paymentMethod: z
+            .enum(["COD", "ONLINE"])
+            .default("COD"),
     }),
 });
 export const updateOrderStatusSchema = z.object({
