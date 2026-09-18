@@ -215,7 +215,7 @@ export const getAllOrdersService = async () => {
 };
 export const updateOrderStatusService = async (
     orderId,
-    status
+    newStatus
 ) => {
     const id = Number(orderId);
 
@@ -223,25 +223,66 @@ export const updateOrderStatusService = async (
         throw new ApiError(400, "Invalid order ID");
     }
 
-    const order = await prisma.order.findUnique({
-        where: {
-            id,
-        },
+  return prisma.$transaction(async (tx) => {
+    const order = await tx.order.findUnique({
+      where: {
+        id,
+      },
+
+      include: {
+        items: true,
+      },
     });
 
     if (!order) {
-        throw new ApiError(404, "Order not found");
+      throw new ApiError(404, "Order not found");
     }
 
-    return prisma.order.update({
-        where: {
-            id,
-        },
+    if (order.status === "CANCELLED") {
+      throw new ApiError(
+        400,
+        "Cancelled order status cannot be changed"
+      );
+    }
 
-        data: {
-            status,
-        },
+    if (order.status === "DELIVERED") {
+      throw new ApiError(
+        400,
+        "Delivered order status cannot be changed"
+      );
+    }
+
+    // admin is cancelling the order
+    if (newStatus === "CANCELLED") {
+      for (const item of order.items) {
+        await tx.product.update({
+          where: {
+            id: item.productId,
+          },
+
+          data: {
+            stock: {
+              increment: item.quantity,
+            },
+          },
+        });
+      }
+    }
+
+    return tx.order.update({
+      where: {
+        id,
+      },
+
+      data: {
+        status: newStatus,
+      },
+
+      include: {
+        items: true,
+      },
     });
+  });
 };
 export const  cancelOrderService = async ( userId , orderId) =>{
     const  id = Number(orderId);
