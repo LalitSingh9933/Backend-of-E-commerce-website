@@ -67,7 +67,7 @@ export const getAllProductsService = async (query) => {
   const where = {
      isActive: true,
 
-     ...ApiError(search && {
+     ...(search && {
       OR: [
         {
           name:{
