@@ -1,3 +1,4 @@
+import { PaymentStatus } from "@prisma/client";
 import prisma from "../config/prisma.js";
 import ApiError from "../utils/ApiError.js";
 
@@ -62,7 +63,7 @@ export const createOrderService = async (userId, shippingData) => {
                 city: shippingData.city,
                 postalCode: shippingData.postalCode,
 
-                 paymentMethod: shippingData.paymentMethod,
+                paymentMethod: shippingData.paymentMethod,
 
                 subtotal,
                 shippingFee,
@@ -225,95 +226,95 @@ export const updateOrderStatusService = async (
         throw new ApiError(400, "Invalid order ID");
     }
 
-  return prisma.$transaction(async (tx) => {
-    const order = await tx.order.findUnique({
-      where: {
-        id,
-      },
-
-      include: {
-        items: true,
-      },
-    });
-
-    if (!order) {
-      throw new ApiError(404, "Order not found");
-    }
-
-    if (order.status === "CANCELLED") {
-      throw new ApiError(
-        400,
-        "Cancelled order status cannot be changed"
-      );
-    }
-
-    if (order.status === "DELIVERED") {
-      throw new ApiError(
-        400,
-        "Delivered order status cannot be changed"
-      );
-    }
-
-    // admin is cancelling the order
-    if (newStatus === "CANCELLED") {
-      for (const item of order.items) {
-        await tx.product.update({
-          where: {
-            id: item.productId,
-          },
-
-          data: {
-            stock: {
-              increment: item.quantity,
+    return prisma.$transaction(async (tx) => {
+        const order = await tx.order.findUnique({
+            where: {
+                id,
             },
-          },
+
+            include: {
+                items: true,
+            },
         });
-      }
-    }
 
-    return tx.order.update({
-      where: {
-        id,
-      },
+        if (!order) {
+            throw new ApiError(404, "Order not found");
+        }
 
-      data: {
-        status: newStatus,
-      },
+        if (order.status === "CANCELLED") {
+            throw new ApiError(
+                400,
+                "Cancelled order status cannot be changed"
+            );
+        }
 
-      include: {
-        items: true,
-      },
+        if (order.status === "DELIVERED") {
+            throw new ApiError(
+                400,
+                "Delivered order status cannot be changed"
+            );
+        }
+
+        // admin is cancelling the order
+        if (newStatus === "CANCELLED") {
+            for (const item of order.items) {
+                await tx.product.update({
+                    where: {
+                        id: item.productId,
+                    },
+
+                    data: {
+                        stock: {
+                            increment: item.quantity,
+                        },
+                    },
+                });
+            }
+        }
+
+        return tx.order.update({
+            where: {
+                id,
+            },
+
+            data: {
+                status: newStatus,
+            },
+
+            include: {
+                items: true,
+            },
+        });
     });
-  });
 };
-export const  cancelOrderService = async ( userId , orderId) =>{
-    const  id = Number(orderId);
+export const cancelOrderService = async (userId, orderId) => {
+    const id = Number(orderId);
 
-    if(Number.isNaN(id)){
-         throw new ApiError(400, "Invalid order ID");
+    if (Number.isNaN(id)) {
+        throw new ApiError(400, "Invalid order ID");
     }
 
-    return prisma.$transaction(async(tx) => {
+    return prisma.$transaction(async (tx) => {
         const order = await tx.order.findFirst({
-            where:{
+            where: {
                 id,
                 userId,
             },
-            include:{
-                items:true,
+            include: {
+                items: true,
             },
         });
-        if(!order){
+        if (!order) {
             throw new ApiError(404, "Order not  found");
         }
 
-        if(order.status === "CANCELLED"){
+        if (order.status === "CANCELLED") {
             throw new ApiError(400, "Order is already cancelled");
         }
 
-        if(
-            order.status ==="SHIPPED" || order.status ==="DELIVERED"
-        ){
+        if (
+            order.status === "SHIPPED" || order.status === "DELIVERED"
+        ) {
             throw new ApiError(
                 400,
                 "This order can no longer be cancelled"
@@ -321,13 +322,13 @@ export const  cancelOrderService = async ( userId , orderId) =>{
         }
         // restore stock
 
-        for(const item of order.items){
+        for (const item of order.items) {
             await tx.product.update({
-                where:{
+                where: {
                     id: item.productId,
                 },
-                data:{
-                    stock:{
+                data: {
+                    stock: {
                         increment: item.quantity,
                     },
                 },
@@ -335,17 +336,51 @@ export const  cancelOrderService = async ( userId , orderId) =>{
         }
         // change  order status
         const cancelledOrder = await tx.order.update({
-            where:{
+            where: {
                 id,
             },
-            data:{
+            data: {
                 status: "CANCELLED",
 
             },
-            include:{
-                items:true,
+            include: {
+                items: true,
             },
         });
         return cancelledOrder;
     })
+};
+export const updatePaymentStatusService = async (
+    orderId,
+    PaymentStatus
+) => {
+
+    const id = Number(orderId);
+
+    if (Number.isNaN(id)) {
+        throw new ApiError(400, "Invalid order ID");
+    }
+    const order = await prisma.order.findUnique({
+        where: {
+            id,
+        },
+    });
+    if (!order) {
+    throw new ApiError(404, "Order not found");
+  }
+    if (order.status === "CANCELLED") {
+    throw new ApiError(
+      400,
+      "Cannot update payment status of a cancelled order"
+    );
+}
+ return prisma.order.update({
+    where: {
+      id,
+    },
+
+    data: {
+      paymentStatus,
+    },
+  });
 }

@@ -6,7 +6,8 @@ import {
     getOrderById,
     getAllOrders,
     updateOrderStatus,
-    cancelOrder
+    cancelOrder,
+    updatePaymentStatus
 
 } from "../controllers/order.controller.js";
 import {authorize} from "../middlewares/authorize.middleware.js";
@@ -16,6 +17,7 @@ import validate from "../middlewares/validate.middleware.js";
 import {
     createOrderSchema,
     updateOrderStatusSchema,
+    updatePaymentStatusSchema,
 } from "../validators/order.validator.js";
 
 const router = Router();
@@ -57,5 +59,12 @@ router.patch(
   authorize("ADMIN"),
   validate(updateOrderStatusSchema),
   updateOrderStatus
+);
+router.patch(
+  "/admin/:id/payment-status",
+  authenticate,
+  authorize("ADMIN"),
+  validate(updatePaymentStatusSchema),
+  updatePaymentStatus
 );
 export default router;

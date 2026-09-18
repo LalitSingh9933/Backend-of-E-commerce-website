@@ -7,6 +7,7 @@ import {
   getAllOrdersService,
   updateOrderStatusService,
   cancelOrderService,
+  updatePaymentStatusService,
 } from "../services/order.service.js";
 
 export const createOrder = asyncHandler(async (req, res) => {
@@ -76,16 +77,32 @@ export const updateOrderStatus = asyncHandler(
     );
   }
 );
-export const cancelOrder = asyncHandler(asyncHandler(async(req,res)=>{
+export const cancelOrder = asyncHandler(asyncHandler(async (req, res) => {
   const order = await cancelOrderService(
     req.user.id,
     req.params.id
   );
-   return res.status(200).json(
+  return res.status(200).json(
     new ApiResponse(
       200,
       "Order cancelled successfully",
       order
     )
-   )
-}))
+  )
+}));
+export const updatePaymentStatus = asyncHandler(
+  async (req, res) => {
+    const order = await updatePaymentStatusService(
+      req.params.id,
+      req.body.paymentStatus
+    );
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        "Payment status updated successfully",
+        order
+      )
+    );
+  }
+);
