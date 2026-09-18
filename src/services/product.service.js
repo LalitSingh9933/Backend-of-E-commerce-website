@@ -54,59 +54,105 @@ export const createProductService = async ({
 };
 export const getAllProductsService = async (query) => {
 
-  const page = Math.max(Number(query.page)|| 1,1);
+  const page = Math.max(Number(query.page) || 1, 1);
   const limit = Math.min(
-    Math.max(Number(query.limit) || 12,1),
+    Math.max(Number(query.limit) || 12, 1),
     100
   );
 
-  const skip = (page -1) * limit;
+  const skip = (page - 1) * limit;
 
   const search = query.search?.trim();
+  const category = query.category?.trim();
+
+  const minPrice = Number(query.minPrice);
+  const maxPrice = Number(query.maxPrice);
+
+  // sorting
+  let orderBy = {
+    createdAt: "desc",
+  };
+
+  if (query.sort === "price_asc") {
+    orderBy = {
+      price: "asc",
+    };
+  }
+
+  if (query.sort === "price_desc") {
+    orderBy = {
+      price: "desc",
+    };
+  }
+
+  if (query.sort === "oldest") {
+    orderBy = {
+      createdAt: "asc",
+    };
+  }
 
   const where = {
-     isActive: true,
+    isActive: true,
 
-     ...(search && {
+    ...(search && {
       OR: [
         {
-          name:{
+          name: {
             contains: search,
           },
         },
         {
-          description:{
-            contains:search,
+          description: {
+            contains: search,
           },
         },
       ],
-     }),
-  };
+    }),
+  
+    ...(category && {
+      category: {
+        slug: category,
+      },
+    }),
 
-  const [products ,totalProducts ] = await prisma.$transaction([
+    ...((!Number.isNaN(minPrice) || !Number.isNaN(maxPrice)) && {
+      price: {
+        ...(!Number.isNaN(minPrice) && {
+          gte: minPrice,
+        }),
+
+        ...(!Number.isNaN(maxPrice) && {
+          lte: maxPrice,
+        }),
+      },
+    }),
+  };
+  const [products, totalProducts] = await prisma.$transaction([
     prisma.product.findMany({
       where,
-      include:{
+
+      include: {
         category: true,
       },
-      orderBy:{
-        createdAt:"desc",
-      },
+
+      orderBy,
+      
       skip,
       take: limit,
     }),
+
     prisma.product.count({
       where,
     }),
   ]);
 
-  const totalPages = Math.ceil(totalProducts/limit);
+  const totalPages = Math.ceil(totalProducts / limit);
 
-  return{
+  return {
     products,
-  
-    pagination:{
-     page,
+
+    pagination: {
+      page,
       limit,
       totalProducts,
       totalPages,
@@ -114,6 +160,7 @@ export const getAllProductsService = async (query) => {
       hasPreviousPage: page > 1,
     },
   };
+
 };
 export const getProductBySlugService = async (slug) => {
   const product = await prisma.product.findUnique({
