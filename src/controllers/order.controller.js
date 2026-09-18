@@ -5,7 +5,8 @@ import {
   getMyOrdersService,
   getOrderByIdService,
   getAllOrdersService,
-  updateOrderStatusService
+  updateOrderStatusService,
+  cancelOrderService,
 } from "../services/order.service.js";
 
 export const createOrder = asyncHandler(async (req, res) => {
@@ -75,3 +76,16 @@ export const updateOrderStatus = asyncHandler(
     );
   }
 );
+export const cancelOrder = asyncHandler(asyncHandler(async(req,res)=>{
+  const order = await cancelOrderService(
+    req.user.id,
+    req.params.id
+  );
+   return res.status(200).json(
+    new ApiResponse(
+      200,
+      "Order cancelled successfully",
+      order
+    )
+   )
+}))
