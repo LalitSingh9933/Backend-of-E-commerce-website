@@ -226,6 +226,14 @@ export const updateOrderStatusService = async (
         throw new ApiError(400, "Invalid order ID");
     }
 
+    const allowedTransitions = {
+        PENDING: ["CONFIRMED", "CANCELLED"],
+        CONFIRMED: ["PROCESSING", "CANCELLED"],
+        PROCESSING: ["SHIPPED", "CANCELLED"],
+        SHIPPED: ["DELIVERED"],
+        DELIVERED: [],
+        CANCELLED: [],
+    };
     return prisma.$transaction(async (tx) => {
         const order = await tx.order.findUnique({
             where: {
@@ -241,21 +249,17 @@ export const updateOrderStatusService = async (
             throw new ApiError(404, "Order not found");
         }
 
-        if (order.status === "CANCELLED") {
+        const allowedNextStatuses =
+            allowedTransitions[order.status] ?? [];
+
+        if (!allowedNextStatuses.includes(newStatus)) {
             throw new ApiError(
                 400,
-                "Cancelled order status cannot be changed"
+                `Cannot change order status from ${order.status} to ${newStatus}`
             );
         }
+        // restore inventory when cancelling
 
-        if (order.status === "DELIVERED") {
-            throw new ApiError(
-                400,
-                "Delivered order status cannot be changed"
-            );
-        }
-
-        // admin is cancelling the order
         if (newStatus === "CANCELLED") {
             for (const item of order.items) {
                 await tx.product.update({
@@ -366,21 +370,21 @@ export const updatePaymentStatusService = async (
         },
     });
     if (!order) {
-    throw new ApiError(404, "Order not found");
-  }
+        throw new ApiError(404, "Order not found");
+    }
     if (order.status === "CANCELLED") {
-    throw new ApiError(
-      400,
-      "Cannot update payment status of a cancelled order"
-    );
-}
- return prisma.order.update({
-    where: {
-      id,
-    },
+        throw new ApiError(
+            400,
+            "Cannot update payment status of a cancelled order"
+        );
+    }
+    return prisma.order.update({
+        where: {
+            id,
+        },
 
-    data: {
-      paymentStatus,
-    },
-  });
+        data: {
+            paymentStatus,
+        },
+    });
 }
