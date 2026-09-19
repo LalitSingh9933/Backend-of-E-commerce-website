@@ -72,9 +72,12 @@ export const createOrderService = async (userId, shippingData) => {
                 items: {
                     create: cart.items.map((item) => ({
                         productId: item.productId,
-                        quantity: item.quantity,
 
-                        // Snapshot current product price
+                        productName: item.product.name,
+                        productSlug: item.product.slug,
+                        productImage: item.product.image,
+
+                        quantity: item.quantity,
                         price: item.product.price,
                     })),
                 },
