@@ -133,15 +133,17 @@ export const getMyOrdersService = async (userId) => {
 
         include: {
             items: {
-                include: {
-                    product: {
-                        select: {
-                            id: true,
-                            name: true,
-                            slug: true,
-                            image: true,
-                        },
-                    },
+                select: {
+                    id: true,
+                    productId: true,
+
+                    productName: true,
+                    productSlug: true,
+                    productImage: true,
+
+                    quantity: true,
+                    price: true,
+                    createdAt: true,
                 },
             },
         },
@@ -169,15 +171,17 @@ export const getOrderByIdService = async (
 
         include: {
             items: {
-                include: {
-                    product: {
-                        select: {
-                            id: true,
-                            name: true,
-                            slug: true,
-                            image: true,
-                        },
-                    },
+                select: {
+                    id: true,
+                    productId: true,
+
+                    productName: true,
+                    productSlug: true,
+                    productImage: true,
+
+                    quantity: true,
+                    price: true,
+                    createdAt: true,
                 },
             },
         },
@@ -201,15 +205,17 @@ export const getAllOrdersService = async () => {
             },
 
             items: {
-                include: {
-                    product: {
-                        select: {
-                            id: true,
-                            name: true,
-                            slug: true,
-                            image: true,
-                        },
-                    },
+                select: {
+                    id: true,
+                    productId: true,
+
+                    productName: true,
+                    productSlug: true,
+                    productImage: true,
+
+                    quantity: true,
+                    price: true,
+                    createdAt: true,
                 },
             },
         },

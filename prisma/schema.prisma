@@ -37,6 +37,11 @@ enum PaymentMethod {
   COD
   ONLINE
 }
+
+enum PaymentProvider {
+  ESEWA
+  KHALTI
+}
 model User {
   id        Int      @id @default(autoincrement())
   name      String
@@ -131,6 +136,7 @@ model Order {
   postalCode    String?
 
   items         OrderItem[]
+  payments      Payment[]
 
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -144,8 +150,8 @@ model OrderItem {
   orderId   Int
   productId Int
 
-  productName  String
-  productSlug  String
+  productName  String?
+  productSlug  String?
   productImage String?
 
   quantity  Int
@@ -159,4 +165,25 @@ model OrderItem {
   @@index([orderId])
   @@index([productId])
   @@map("order_items")
+}
+model Payment {
+  id Int @id @default(autoincrement())
+
+  orderId Int
+  order   Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  provider PaymentProvider
+
+  amount Decimal @db.Decimal(10, 2)
+
+  status PaymentStatus @default(PENDING)
+
+  transactionId String? @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+  @@map("payments")
 }
