@@ -3,7 +3,7 @@ import { Router } from "express";
 import { authenticate } from "../middlewares/auth.middleware.js";
 import validate from "../middlewares/validate.middleware.js";
 
-import { initiatePayment } from "../controllers/payment.controller.js";
+import { initiatePayment,createEsewaPayment } from "../controllers/payment.controller.js";
 
 import {
   initiatePaymentSchema,
@@ -16,6 +16,11 @@ router.post(
   authenticate,
   validate(initiatePaymentSchema),
   initiatePayment
+);
+router.post(
+  "/:paymentId/esewa",
+  authenticate,
+  createEsewaPayment
 );
 
 export default router;
