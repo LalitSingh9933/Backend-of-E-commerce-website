@@ -106,9 +106,18 @@ export const createEsewaPaymentService = async (
     );
   }
 
-  const transactionUuid =
-    `PAY-${payment.id}-${crypto.randomUUID()}`
-      .replace(/[^a-zA-Z0-9-]/g, "");
+  // Keep one transaction identity for this payment, including concurrent retries.
+  let transactionUuid = payment.transactionUuid;
+  if (!transactionUuid) {
+    const candidate = `PAY-${payment.id}-${crypto.randomUUID()}`;
+    await prisma.payment.updateMany({
+      where: { id: payment.id, transactionUuid: null },
+      data: { transactionUuid: candidate },
+    });
+    const saved = await prisma.payment.findUnique({ where: { id: payment.id } });
+    transactionUuid = saved?.transactionUuid;
+    if (!transactionUuid) throw new ApiError(409, "Unable to save payment reference. Please retry.");
+  }
 
   const totalAmount = payment.amount.toString();
 
@@ -294,7 +303,7 @@ export const verifyEsewaPaymentService = async (encodedData) => {
   }
 
   // 4. Find the payment from OUR database
-  const payment = await prisma.payment.findUnique({
+  let payment = await prisma.payment.findUnique({
     where: {
       transactionUuid: data.transaction_uuid,
     },
@@ -302,6 +311,18 @@ export const verifyEsewaPaymentService = async (encodedData) => {
       order: true,
     },
   });
+
+  // Legacy requests used this server-generated format but did not persist it.
+  // Resolve the candidate only; do not save it or mark paid until provider verification below succeeds.
+  if (!payment) {
+    const legacy = /^PAY-([1-9]\d*)-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.exec(data.transaction_uuid);
+    if (legacy && Number.isSafeInteger(Number(legacy[1]))) {
+      payment = await prisma.payment.findFirst({
+        where: { id: Number(legacy[1]), provider: "ESEWA", transactionUuid: null, status: "PENDING" },
+        include: { order: true },
+      });
+    }
+  }
 
   if (!payment || payment.provider !== "ESEWA") {
     throw new ApiError(
@@ -362,9 +383,15 @@ const queryParams = new URLSearchParams({
   transaction_uuid: data.transaction_uuid,
 });
 
-const statusResponse = await fetch(
-  `https://uat.esewa.com.np/api/epay/transaction/status/?${queryParams.toString()}`
-);
+const gateway = new URL(process.env.ESEWA_PAYMENT_URL).hostname;
+const statusHost = gateway === "rc-epay.esewa.com.np" ? "rc.esewa.com.np" : gateway === "epay.esewa.com.np" ? "esewa.com.np" : null;
+if (!statusHost) throw new ApiError(500, "Unsupported eSewa gateway configuration");
+let statusResponse;
+try {
+  statusResponse = await fetch(`https://${statusHost}/api/epay/transaction/status/?${queryParams.toString()}`, { signal: AbortSignal.timeout(10000) });
+} catch {
+  throw new ApiError(502, "Unable to reach eSewa verification. Please retry; do not pay again.");
+}
 
 if (!statusResponse.ok) {
   throw new ApiError(
@@ -404,6 +431,13 @@ if (
 // 12. Update Payment + Order together
 const updatedPayment = await prisma.$transaction(
   async (tx) => {
+    if (!payment.transactionUuid) {
+      const attached = await tx.payment.updateMany({
+        where: { id: payment.id, transactionUuid: null, status: "PENDING" },
+        data: { transactionUuid: data.transaction_uuid },
+      });
+      if (attached.count !== 1) throw new ApiError(409, "Payment changed during verification. Please retry.");
+    }
     const updated = await tx.payment.update({
       where: {
         id: payment.id,

@@ -24,7 +24,10 @@ export const verifyEsewaResponseSignature = (data) => {
     return false;
   }
 
+  if (typeof data.signed_field_names !== "string" || typeof data.signature !== "string") return false;
   const signedFields = data.signed_field_names.split(",");
+  const required = ["transaction_code", "status", "total_amount", "transaction_uuid", "product_code", "signed_field_names"];
+  if (signedFields.length !== required.length || new Set(signedFields).size !== required.length || required.some(field => !signedFields.includes(field) || data[field] == null)) return false;
 
   const message = signedFields
     .map((field) => `${field}=${data[field]}`)
