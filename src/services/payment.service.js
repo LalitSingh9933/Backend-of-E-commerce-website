@@ -4,6 +4,7 @@ import crypto from "crypto"
 
 import {
   generateEsewaSignature,
+  verifyEsewaResponseSignature,
 } from "../utils/esewa.js";
 
 export const initiatePaymentService = async (
@@ -246,4 +247,196 @@ export const createKhaltiPaymentService = async (
     expiresAt: data.expires_at,
     expiresIn: data.expires_in,
   };
+};
+export const verifyEsewaPaymentService = async (encodedData) => {
+  if (!encodedData) {
+    throw new ApiError(400, "eSewa payment data is required");
+  }
+
+  // 1. Decode Base64 response from eSewa
+  let data;
+
+  try {
+    const decodedData = Buffer.from(
+      encodedData,
+      "base64"
+    ).toString("utf8");
+
+    data = JSON.parse(decodedData);
+  } catch (error) {
+    throw new ApiError(400, "Invalid eSewa response data");
+  }
+
+  // 2. Check required fields
+  if (
+    !data.transaction_uuid ||
+    !data.total_amount ||
+    !data.product_code ||
+    !data.status ||
+    !data.signed_field_names ||
+    !data.signature
+  ) {
+    throw new ApiError(
+      400,
+      "Incomplete eSewa payment response"
+    );
+  }
+
+  // 3. Verify eSewa response signature
+  const isSignatureValid =
+    verifyEsewaResponseSignature(data);
+
+  if (!isSignatureValid) {
+    throw new ApiError(
+      400,
+      "Invalid eSewa response signature"
+    );
+  }
+
+  // 4. Find the payment from OUR database
+  const payment = await prisma.payment.findUnique({
+    where: {
+      transactionUuid: data.transaction_uuid,
+    },
+    include: {
+      order: true,
+    },
+  });
+
+  if (!payment || payment.provider !== "ESEWA") {
+    throw new ApiError(
+      404,
+      "eSewa payment not found"
+    );
+  }
+
+  // 5. If already paid, don't process it again
+  if (payment.status === "PAID") {
+    return {
+      verified: true,
+      status: "COMPLETE",
+      payment,
+    };
+  }
+
+  // 6. Verify product code
+  if (
+    data.product_code !==
+    process.env.ESEWA_PRODUCT_CODE
+  ) {
+    throw new ApiError(
+      400,
+      "Invalid eSewa product code"
+    );
+  }
+
+  // 7. Verify amount
+  const expectedAmount = Number(payment.amount);
+
+  const receivedAmount = Number(
+    String(data.total_amount).replace(/,/g, "")
+  );
+
+  if (
+    !Number.isFinite(receivedAmount) ||
+    Math.abs(receivedAmount - expectedAmount) > 0.001
+  ) {
+    throw new ApiError(
+      400,
+      "eSewa payment amount does not match"
+    );
+  }
+
+  // 8. eSewa response must say COMPLETE
+  if (data.status !== "COMPLETE") {
+    return {
+      verified: false,
+      status: data.status,
+    };
+  }
+
+ // 9. Ask eSewa directly for the transaction status
+const queryParams = new URLSearchParams({
+  product_code: process.env.ESEWA_PRODUCT_CODE,
+  total_amount: String(data.total_amount).replace(/,/g, ""),
+  transaction_uuid: data.transaction_uuid,
+});
+
+const statusResponse = await fetch(
+  `https://uat.esewa.com.np/api/epay/transaction/status/?${queryParams.toString()}`
+);
+
+if (!statusResponse.ok) {
+  throw new ApiError(
+    502,
+    "Unable to verify transaction with eSewa"
+  );
+}
+
+const statusData = await statusResponse.json();
+
+
+// 10. eSewa itself must confirm COMPLETE
+if (statusData.status !== "COMPLETE") {
+  return {
+    verified: false,
+    status: statusData.status,
+  };
+}
+
+
+// 11. Verify the amount returned by the status API
+const statusAmount = Number(
+  String(statusData.total_amount).replace(/,/g, "")
+);
+
+if (
+  !Number.isFinite(statusAmount) ||
+  Math.abs(statusAmount - expectedAmount) > 0.001
+) {
+  throw new ApiError(
+    400,
+    "Verified eSewa amount does not match"
+  );
+}
+
+
+// 12. Update Payment + Order together
+const updatedPayment = await prisma.$transaction(
+  async (tx) => {
+    const updated = await tx.payment.update({
+      where: {
+        id: payment.id,
+      },
+
+      data: {
+        status: "PAID",
+
+        transactionId:
+          data.transaction_code ||
+          statusData.ref_id ||
+          null,
+      },
+    });
+
+    await tx.order.update({
+      where: {
+        id: payment.orderId,
+      },
+
+      data: {
+        paymentStatus: "PAID",
+      },
+    });
+
+    return updated;
+  }
+);
+
+// 13. Return verified payment
+return {
+  verified: true,
+  status: "COMPLETE",
+  payment: updatedPayment,
+};
 };

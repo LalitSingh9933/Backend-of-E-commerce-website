@@ -10,3 +10,10 @@ export const initiatePaymentSchema = z.object({
         ]),
     }),
 });
+export const verifyEsewaPaymentSchema = z.object({
+  body: z.object({
+    data: z
+      .string()
+      .min(1, "eSewa payment data is required"),
+  }),
+});

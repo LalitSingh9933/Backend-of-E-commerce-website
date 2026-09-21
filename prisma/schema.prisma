@@ -179,7 +179,9 @@ model Payment {
   status PaymentStatus @default(PENDING)
 
   transactionId String? @unique
-  pidx String? @unique
+  transactionUuid String? @unique //ESEWA
+
+  pidx String? @unique  // KHALTI
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

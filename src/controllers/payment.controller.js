@@ -1,6 +1,6 @@
 import asyncHandler from "../utils/asyncHandler.js";
 import ApiResponse from "../utils/ApiResponse.js";
-import { initiatePaymentService,createEsewaPaymentService } from "../services/payment.service.js";
+import { initiatePaymentService, createEsewaPaymentService, verifyEsewaPaymentService } from "../services/payment.service.js";
 
 export const initiatePayment = asyncHandler(
   async (req, res) => {
@@ -32,6 +32,23 @@ export const createEsewaPayment = asyncHandler(
       new ApiResponse(
         200,
         "eSewa payment request created successfully",
+        result
+      )
+    );
+  }
+);
+export const verifyEsewaPayment = asyncHandler(
+  async (req, res) => {
+    const { data } = req.body;
+
+    const result = await verifyEsewaPaymentService(data);
+
+    return res.status(200).json(
+      new ApiResponse(
+        200,
+        result.verified
+          ? "eSewa payment verified successfully"
+          : "eSewa payment is not completed",
         result
       )
     );
